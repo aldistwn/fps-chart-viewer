@@ -8,12 +8,12 @@ from scipy.signal import savgol_filter
 
 # Page configuration
 st.set_page_config(
-    page_title="🎮 Gaming Chart Generator",
+    page_title="🎮 Gaming Chart Generator - Scene Style",
     page_icon="🎮",
     layout="wide"
 )
 
-class FinalOptimizedGamingChartGenerator:
+class SceneStyleGamingChartGenerator:
     def __init__(self):
         self.original_data = None
         self.processed_data = None
@@ -282,59 +282,75 @@ class FinalOptimizedGamingChartGenerator:
             st.error(f"❌ Processing failed: {e}")
             return False
     
-    def create_optimized_chart(self, game_title, game_settings, game_mode, smartphone_name,
-                             fps_color, cpu_color, show_original=True, show_processed=True):
-        """Create chart with consistent data"""
+    def create_scene_style_chart(self, game_title, game_settings, game_mode, smartphone_name,
+                                fps_color, cpu_color, show_original=True, show_processed=True):
+        """Create Scene app style chart with FPS bar chart and CPU line overlay"""
         
-        # Create figure
+        # Set up Scene app inspired dark theme
+        plt.style.use('dark_background')
         fig, ax1 = plt.subplots(figsize=(19.2, 10.8))
-        fig.patch.set_facecolor('none')
+        fig.patch.set_facecolor('#0f0f0f')  # Very dark background like Scene
+        ax1.set_facecolor('#0f0f0f')
         
-        # Setup axes
-        ax1.set_xlabel('Time (minutes)', fontsize=12, fontweight='bold', color='black')
-        ax1.set_ylabel('FPS', color='black', fontsize=12, fontweight='bold')
-        ax1.tick_params(axis='y', labelcolor='black', labelsize=10)
-        ax1.tick_params(axis='x', labelcolor='black', labelsize=10)
+        # Setup axes with Scene app styling
+        ax1.set_xlabel('Time (minutes)', fontsize=12, fontweight='bold', color='#cccccc')
+        ax1.set_ylabel('FPS', color='#cccccc', fontsize=12, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor='#cccccc', labelsize=10)
+        ax1.tick_params(axis='x', labelcolor='#cccccc', labelsize=10)
         
+        # CPU overlay axis
         ax2 = ax1.twinx()
-        ax2.set_ylabel('CPU Usage (%)', color='black', fontsize=12, fontweight='bold')
-        ax2.tick_params(axis='y', labelcolor='black', labelsize=10)
+        ax2.set_ylabel('CPU Usage (%)', color='#cccccc', fontsize=12, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor='#cccccc', labelsize=10)
         ax2.set_ylim(0, 100)
         
         # Determine primary dataset
         primary_data = self.processed_data if self.processed_data is not None else self.original_data
         
-        # Plot original data (if requested and different from processed)
+        # Calculate optimal bar width for Scene app look
+        total_duration = len(primary_data) / 60  # minutes
+        bar_width = total_duration / len(primary_data) * 0.9  # 90% of time interval for density
+        
+        # Plot original data as background (faded) if requested
         if show_original and self.processed_data is not None and len(self.processed_data) != len(self.original_data):
             orig_length = len(self.processed_data)
             orig_time = self.original_data['TimeMinutes'][:orig_length]
             orig_fps = self.original_data['FPS'][:orig_length]
             orig_cpu = self.original_data['CPU(%)'][:orig_length]
             
-            ax1.plot(orig_time, orig_fps, color=fps_color, linewidth=1, 
-                    alpha=0.3, linestyle='--', zorder=2)
+            # Background FPS bars (Scene app style - very faded)
+            ax1.bar(orig_time, orig_fps, width=bar_width, color='#555555', 
+                   alpha=0.3, edgecolor='none', zorder=1, label='Original FPS')
+            # Background CPU line
             ax2.plot(orig_time, orig_cpu, color=cpu_color, linewidth=1,
-                    alpha=0.3, linestyle='--', zorder=1)
+                    alpha=0.3, linestyle='--', zorder=2)
         
-        # Plot processed/main data
+        # Main chart: Scene app style bars + line overlay
         if show_processed and self.processed_data is not None:
             time_data = self.processed_data['TimeMinutes']
             fps_data = self.processed_data['FPS_Smooth'] if 'FPS_Smooth' in self.processed_data else self.processed_data['FPS']
             cpu_data = self.processed_data['CPU_Smooth'] if 'CPU_Smooth' in self.processed_data else self.processed_data['CPU(%)']
             
-            # Main lines with labels
-            ax1.plot(time_data, fps_data, color=fps_color, linewidth=2.5,
-                    label='FPS', alpha=0.9, zorder=4)
+            # Scene app style FPS bars - white/light gray like original
+            ax1.bar(time_data, fps_data, width=bar_width, color=fps_color, 
+                   alpha=0.85, edgecolor='none', zorder=3, label='FPS')
+            
+            # CPU as line overlay for correlation analysis
             ax2.plot(time_data, cpu_data, color=cpu_color, linewidth=2.5,
-                    label='CPU', alpha=0.9, zorder=3)
+                    label='CPU', alpha=0.9, zorder=4, linestyle='-')
+            
         elif show_original:
-            # Fallback to original data
-            ax1.plot(self.original_data['TimeMinutes'], self.original_data['FPS'],
-                    color=fps_color, linewidth=2.5, label='FPS', alpha=0.9)
-            ax2.plot(self.original_data['TimeMinutes'], self.original_data['CPU(%)'],
-                    color=cpu_color, linewidth=2.5, label='CPU', alpha=0.9)
+            # Fallback to original data with Scene style
+            time_data = self.original_data['TimeMinutes']
+            fps_data = self.original_data['FPS']
+            cpu_data = self.original_data['CPU(%)']
+            
+            ax1.bar(time_data, fps_data, width=bar_width, color=fps_color,
+                   alpha=0.85, edgecolor='none', label='FPS', zorder=3)
+            ax2.plot(time_data, cpu_data, color=cpu_color, linewidth=2.5, 
+                    label='CPU', alpha=0.9, zorder=4)
         
-        # Set limits
+        # Y-axis limits
         if 'FPS_Smooth' in primary_data:
             fps_max = max(primary_data['FPS_Smooth']) * 1.1
         else:
@@ -342,37 +358,51 @@ class FinalOptimizedGamingChartGenerator:
         
         ax1.set_ylim(0, fps_max)
         
-        # Title and styling
+        # Scene app style title
         title_text = f"{game_title}\n{game_settings}\n{game_mode}"
         plt.suptitle(title_text, fontsize=24, fontweight='bold', y=0.98, color='white')
         plt.subplots_adjust(top=0.85)
         
-        # Grid and styling
-        ax1.grid(True, alpha=0.3, linestyle='--', color='white')
-        ax1.set_facecolor('none')
+        # Minimal grid like Scene app
+        ax1.grid(True, alpha=0.15, linestyle='-', color='#444444', linewidth=0.5)
+        ax1.set_axisbelow(True)
         
-        # Legend
+        # Scene app style legend
         lines1, labels1 = ax1.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
         
         if lines1 or lines2:
-            legend_lines = [plt.Line2D([0], [0], color='none')] + lines1 + lines2
-            legend_labels = [smartphone_name] + labels1 + labels2
+            # Create custom legend entries
+            legend_elements = []
+            legend_labels = []
             
-            legend = ax1.legend(legend_lines, legend_labels,
-                              loc='upper right', framealpha=0.8, fancybox=True,
-                              facecolor='white', edgecolor='gray')
+            # Add smartphone name as header
+            legend_elements.append(plt.Line2D([0], [0], color='none'))
+            legend_labels.append(smartphone_name)
             
+            # Add FPS and CPU
+            if lines1:
+                legend_elements.extend(lines1)
+                legend_labels.extend(labels1)
+            if lines2:
+                legend_elements.extend(lines2)
+                legend_labels.extend(labels2)
+            
+            legend = ax1.legend(legend_elements, legend_labels,
+                              loc='upper right', framealpha=0.9, fancybox=True,
+                              facecolor='#1a1a1a', edgecolor='#555555')
+            
+            # Style legend text
             for i, text in enumerate(legend.get_texts()):
-                text.set_color('black')
+                text.set_color('white')
                 text.set_horizontalalignment('left')
-                if i == 0:
+                if i == 0:  # Smartphone name
                     text.set_fontweight('bold')
                     text.set_fontsize(11)
                 else:
                     text.set_fontsize(10)
         
-        # Hide spines
+        # Remove spines for clean Scene app look
         for spine in ax1.spines.values():
             spine.set_visible(False)
         for spine in ax2.spines.values():
@@ -481,9 +511,9 @@ class FinalOptimizedGamingChartGenerator:
         export_data.to_csv(csv_buffer, index=False)
         csv_content = csv_buffer.getvalue()
         
-        # Generate filename with debug indicator
+        # Generate filename with scene style indicator
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{game_title.replace(' ', '_')}_DEBUG_processed_data_{timestamp}.csv"
+        filename = f"{game_title.replace(' ', '_')}_SCENE_STYLE_processed_{timestamp}.csv"
         
         st.success(f"✅ **Export generated with filename: {filename}**")
         st.info(f"📊 **Export contains {len(export_data)} rows with max FPS: {final_fps_max}**")
@@ -491,12 +521,12 @@ class FinalOptimizedGamingChartGenerator:
         return csv_content, filename
 
 def main():
-    # Header
-    st.title("🎮 Final Gaming Chart Generator with DEBUG")
-    st.markdown("Transform gaming logs with **EMERGENCY debugging enabled**")
+    # Header with Scene app inspiration
+    st.title("🎮 Gaming Chart Generator - Scene App Style")
+    st.markdown("Transform gaming logs with **Scene App inspired bar charts** + Professional analysis tools")
     
     # Initialize
-    generator = FinalOptimizedGamingChartGenerator()
+    generator = SceneStyleGamingChartGenerator()
     
     # Sidebar configuration
     with st.sidebar:
@@ -506,35 +536,39 @@ def main():
         game_mode = st.text_input("Performance Mode", value="BOOST MODE")
         smartphone_name = st.text_input("Smartphone Model", value="iPhone 15 Pro Max")
         
-        st.header("🎨 Chart Colors")
-        fps_color = st.color_picker("FPS Color", "#4A90E2")  # Blue default
-        cpu_color = st.color_picker("CPU Color", "#FF6600")   # Orange default
+        st.header("🎨 Scene Style Colors")
+        fps_color = st.color_picker("FPS Bar Color", "#FFFFFF")  # White like Scene app
+        cpu_color = st.color_picker("CPU Line Color", "#FF6600")   # Orange for visibility
         
         st.header("📊 Display Options")
         show_original = st.checkbox("Show Original Data", value=False,
-                                   help="Show original data as faded background")
+                                   help="Show original data as background bars")
         show_processed = st.checkbox("Show Processed Data", value=True,
-                                    help="Show processed/smoothed data as main line")
+                                    help="Show processed data as main Scene-style bars")
         
         st.header("🔧 Data Processing")
         
-        # Outlier Removal
+        # Outlier Removal with gaming context
         enable_outlier_removal = st.toggle("🚫 Remove Worst FPS Frames", value=False,
-                                          help="Remove only the worst performing frames")
+                                          help="Remove severe frame drops (use carefully for gaming analysis)")
         
         if enable_outlier_removal:
             outlier_sensitivity = st.select_slider(
                 "Removal Sensitivity",
                 options=['conservative', 'moderate', 'aggressive'],
-                value='moderate'
+                value='moderate',
+                help="Conservative: Keep most data, Aggressive: Remove more outliers"
             )
         else:
             outlier_sensitivity = 'moderate'
         
-        # Smoothing
+        # Smoothing with gaming warnings
+        st.info("⚠️ **Gaming Analysis Note**: Smoothing may hide frame drops and stutters")
+        
         col1, col2 = st.columns(2)
         with col1:
-            enable_fps_smooth = st.toggle("🎯 FPS Smoothing", value=False)
+            enable_fps_smooth = st.toggle("🎯 FPS Smoothing", value=False,
+                                        help="⚠️ May hide frame drops")
             if enable_fps_smooth:
                 fps_window = st.slider("FPS Window", 5, 21, 7, step=2)
                 fps_poly = st.slider("FPS Poly", 1, 3, 1)
@@ -558,7 +592,7 @@ def main():
         if generator.load_csv_data(uploaded_file):
             
             # Process data
-            with st.spinner('🔧 Processing data...'):
+            with st.spinner('🔧 Processing data with Scene app style...'):
                 if generator.apply_processing(
                     fps_window, fps_poly, cpu_window, cpu_poly,
                     enable_fps_smooth, enable_cpu_smooth,
@@ -581,18 +615,21 @@ def main():
             with col4:
                 st.metric("🖥️ Avg CPU", f"{display_data['CPU(%)'].mean():.1f}%")
             
-            # Generate chart
-            st.header("📊 Performance Chart")
+            # Generate Scene style chart
+            st.header("📊 Scene App Style Performance Chart")
             
             if not show_original and not show_processed:
                 st.warning("⚠️ Please select at least one display option")
             else:
-                with st.spinner('🎨 Creating chart...'):
-                    chart_fig = generator.create_optimized_chart(
+                with st.spinner('🎨 Creating Scene app style chart...'):
+                    chart_fig = generator.create_scene_style_chart(
                         game_title, game_settings, game_mode, smartphone_name,
                         fps_color, cpu_color, show_original, show_processed
                     )
                     st.pyplot(chart_fig)
+                    
+                    # Scene app style info
+                    st.info("🎮 **Scene App Style**: FPS displayed as bars (like original Scene app), CPU as line overlay for correlation analysis")
             
             # Performance statistics
             stats = generator.get_statistics(use_processed=True)
@@ -610,7 +647,7 @@ def main():
                 st.metric("Removed Frames", stats['removed_frames'])
             
             # Export section
-            st.header("💾 Export Results")
+            st.header("💾 Export Scene Style Results")
             
             col1, col2 = st.columns(2)
             
@@ -620,14 +657,14 @@ def main():
                 if 'chart_fig' in locals():
                     img_buffer = io.BytesIO()
                     chart_fig.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight',
-                                     facecolor='none', edgecolor='none', transparent=True)
+                                     facecolor='#0f0f0f', edgecolor='none')
                     img_buffer.seek(0)
                     
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    png_filename = f"{game_title.replace(' ', '_')}_chart_{timestamp}.png"
+                    png_filename = f"{game_title.replace(' ', '_')}_SCENE_STYLE_chart_{timestamp}.png"
                     
                     st.download_button(
-                        label="📸 Download Chart (PNG)",
+                        label="📸 Download Scene Style Chart (PNG)",
                         data=img_buffer.getvalue(),
                         file_name=png_filename,
                         mime="image/png",
@@ -683,11 +720,28 @@ def main():
             - Exact spelling required: FPS and CPU(%)
             """)
         
+        with st.expander("🎮 Scene App Style Features"):
+            st.markdown("""
+            **Scene App Inspired Design:**
+            - **FPS as white/custom colored bars** (like Scene app)
+            - **CPU as line overlay** for correlation analysis
+            - **Dark gaming theme** with minimal grid
+            - **Frame drops visible** as shorter bars
+            - **Professional gaming benchmark appearance**
+            
+            **Why Scene App Style?**
+            - Individual frame performance clearly visible
+            - Frame drops and stutters easy to spot
+            - Matches professional gaming analysis tools
+            - Better pattern recognition for performance issues
+            - Familiar interface for mobile gamers
+            """)
+        
         with st.expander("💾 Export Features"):
             st.markdown("""
             **Chart Export (PNG):**
             - High-resolution (300 DPI)
-            - Transparent background
+            - Scene app inspired dark theme
             - Professional gaming chart format
             - Ready for presentations/reports
             
